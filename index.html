@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BG-ProAir Live Multiplayer</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #f0f0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; overflow: hidden; }
+        #quiz-container { background: #1a1a1a; padding: 2.5rem; border-radius: 12px; border: 1px solid #333; width: 90%; max-width: 600px; position: relative; }
+        
+        /* RIVAL SIDEBAR */
+        #rival-feed { position: absolute; right: -220px; top: 0; width: 200px; background: #111; border: 1px solid #00ff99; padding: 10px; border-radius: 8px; font-family: monospace; }
+        .rival { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: #00ff99; }
+
+        /* CORE UI */
+        .stats { display: flex; justify-content: space-between; color: #00ff99; font-weight: bold; margin-bottom: 10px; }
+        .question { font-size: 1.2rem; min-height: 80px; margin: 20px 0; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 15px; border: 1px solid #00ff99; background: transparent; color: #00ff99; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        button:hover { background: #00ff99; color: #000; }
+        #timer-bar { height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+        #timer-fill { height: 100%; background: #00ff99; width: 100%; transition: width 0.1s linear; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="rival-feed">
+        <div style="font-size: 0.6rem; color: #888; margin-bottom: 8px;">LIVE CANDIDATES</div>
+        <div id="rival-list">Connecting...</div>
+    </div>
+
+    <div id="start-screen">
+        <h1 style="color: #00ff99">BG-PROAIR LIVE</h1>
+        <button onclick="startMultiplayer()">START EVALUATION</button>
+    </div>
+
+    <div id="game-ui" class="hidden">
+        <div class="stats"><span>STREAK: <span id="streak">0</span></span><span id="clock">20s</span></div>
+        <div id="timer-bar"><div id="timer-fill"></div></div>
+        <div id="q-text" class="question"></div>
+        <div id="options-box" class="options-grid"></div>
+    </div>
+</div>
+
+<script>
+const rawStatements = [
+    { s: "A positive pressure leak could be caused by a leakage in or at device components.", k: "leakage", d: ["blockage", "rupture", "contamination"] },
+    // Add all 77 statements here...
+];
+
+let socket, streak = 0, deck = [], activeQ, timer;
+
+function startMultiplayer() {
+    const name = prompt("Candidate Name:") || "Anonymous";
+    socket = io('YOUR_SERVER_URL_HERE'); // CHANGE THIS AFTER HOSTING
+    
+    socket.on('player-update', (players) => {
+        document.getElementById('rival-list').innerHTML = Object.values(players)
+            .sort((a,b) => b.streak - a.streak)
+            .map(p => `<div class="rival"><span>${p.name}</span><span>${p.streak}</span></div>`).join('');
+    });
+
+    socket.emit('join-game', { name });
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('game-ui').classList.remove('hidden');
+    deck = [...rawStatements].sort(() => Math.random() - 0.5);
+    nextQ();
+}
+
+function nextQ() {
+    if (deck.length === 0) return alert("Certified!");
+    activeQ = deck[0];
+    document.getElementById('q-text').innerText = activeQ.s.replace(activeQ.k, "__________");
+    
+    let choices = [...activeQ.d, activeQ.k].sort(() => Math.random() - 0.5);
+    const box = document.getElementById('options-box');
+    box.innerHTML = '';
+    choices.forEach(c => {
+        const btn = document.createElement('button');
+        btn.innerText = c;
+        btn.onclick = () => {
+            if(c === activeQ.k) {
+                streak++;
+                socket.emit('streak-up', streak);
+                deck.shift();
+                clearInterval(timer);
+                nextQ();
+            } else { location.reload(); }
+        };
+        box.appendChild(btn);
+    });
+    startTimer();
+}
+
+function startTimer() {
+    let t = 20;
+    timer = setInterval(() => {
+        t -= 0.1;
+        document.getElementById('clock').innerText = t.toFixed(1) + "s";
+        document.getElementById('timer-fill').style.width = (t/20*100) + "%";
+        if(t <= 0) { clearInterval(timer); location.reload(); }
+    }, 100);
+}
+</script>
+</body>
+</html>
