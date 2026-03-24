@@ -1,0 +1,16 @@
+{
+  "name": "BG-ProAir Certification",
+  "short_name": "ProAir Cert",
+  "start_url": "BG2.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#00ff99",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
